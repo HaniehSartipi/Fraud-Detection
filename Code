@@ -1,0 +1,231 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+df = pd.read_csv('/content/data.csv')
+df.head()
+
+df.shape
+df.info()
+
+missvalue = df.isnull().sum()
+print(missvalue)
+#so we dont have any missing value
+#in case we have missing value, we use like median,mean imputation
+
+df.describe()
+
+df = df.drop_duplicates()
+df.shape #we dont have any duplicates
+
+sns.histplot(df['amount'], kde=True)
+plt.show()
+
+catcol = df.select_dtypes(include=['object']).columns
+for col in catcol:
+    plt.figure(figsize=(12, 7))
+    df[col].value_counts().plot(kind='bar')
+    plt.title(f'Bar Chart {col}')
+    plt.xlabel(col)
+    plt.ylabel('Count')
+    plt.show()
+
+df.plot.scatter(x='amount', y = 'label' )
+
+sns.barplot(x='agent', y='amount', data=df)
+plt.show()
+
+sns.boxplot(x= df['amount'] )
+
+df_o = df[ ((df['amount'] - df['amount'].mean() )/ df['amount'].std()).abs() < 3]
+
+print(df.shape, df_o.shape)
+#Outliers
+
+# check if our data is balance or not
+label_counts = df['label'].value_counts()
+label_counts
+
+from imblearn.over_sampling import SMOTE
+from sklearn.model_selection import train_test_split
+
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+
+catcolumns = ['source_prefix', 'source_postfix', 'dest_prefix', 'dest_postfix', 'status', 'agent']
+label_encoders = {}
+for col in catcolumns:
+    label_encoders[col] = LabelEncoder()
+    df[col] = label_encoders[col].fit_transform(df[col])
+
+X = df.drop(columns=['label'])
+y = df['label']
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=78, stratify=y)
+
+smote = SMOTE(random_state=78)
+X_train_resampled, y_train_resampled = smote.fit_resample(X_train, y_train)
+
+# Step 4: Check the class distribution after oversampling
+print("Class distribution of training set before oversampling:")
+print(y_train.value_counts())
+
+print("\nClass distribution of training set after oversampling:")
+print(pd.Series(y_train_resampled).value_counts())
+
+X_train_resampled.shape
+
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+from sklearn.preprocessing import StandardScaler
+
+X = df.drop(columns=['label','source_postfix','source_prefix','agent','amount'])
+y = df['label']
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=78, stratify=y)
+
+smote = SMOTE(random_state=78)
+X_train_resampled, y_train_resampled = smote.fit_resample(X_train, y_train)
+
+model = RandomForestClassifier(n_estimators=100, random_state=78)
+model.fit(X_train_resampled, y_train_resampled)
+y_pred = model.predict(X_test)
+
+print("Confusion Matrix:")
+print(confusion_matrix(y_test, y_pred))
+
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred))
+
+print("\nAccuracy Score:")
+print(f"{accuracy_score(y_test, y_pred):.3f}")
+
+
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+
+X = df.drop(columns=['label'])
+
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+inertia = []
+for k in range(1, 11):
+    kmeans = KMeans(n_clusters=k, random_state=78)
+    kmeans.fit(X_scaled)
+    inertia.append(kmeans.inertia_)
+
+plt.figure(figsize=(13, 8))
+plt.plot(range(1, 11), inertia, marker='o')
+plt.title('Elbow plot')
+plt.xlabel('Number of Clusters')
+plt.ylabel('Inertia')
+plt.xticks(range(1, 11))
+plt.grid(True)
+plt.show()
+
+from sklearn.decomposition import PCA
+pca=PCA().fit(X)
+eigenvalues = (pca.explained_variance_)
+prop_var = eigenvalues / np.sum(eigenvalues)
+plt.figure(figsize=(14,10))
+plt.plot(np.arange(1, len(prop_var)+1),
+                   prop_var, marker='o',linewidth=3)
+plt.xlabel('Principal Component',
+           size = 20)
+plt.ylabel('Proportion of Variance Explained',
+           size = 20)
+plt.title(' Scree Plot ',
+          size = 25)
+plt.grid(True)
+
+from sklearn.mixture import GaussianMixture
+from sklearn.metrics import silhouette_score
+
+# Kmeans with PCA
+X = df.drop(columns=['label'])
+
+scaler = StandardScaler()
+X_normalized = scaler.fit_transform(X)
+
+pca = PCA(n_components=2)
+X_pca = pca.fit_transform(X_normalized)
+
+kmeans = KMeans(n_clusters=3, init='random', random_state=78)
+kmeans.fit(X_pca)
+kmeans_labels = kmeans.labels_
+
+silhouette_kmeans = silhouette_score(X_pca, kmeans_labels)
+print(f"Silhouette Score of K-Means ): {silhouette_kmeans:.3f}")
+
+plt.figure(figsize=(12, 6))
+plt.subplot(1, 2, 1)
+for cluster in range(3):
+    plt.scatter(X_pca[kmeans_labels == cluster, 0], X_pca[kmeans_labels == cluster, 1], label=f'Cluster {cluster}')
+plt.scatter(kmeans.cluster_centers_[:, 0], kmeans.cluster_centers_[:, 1], s=200, c='red', marker='X', label='Centroids')
+plt.title('K-Means Clustering')
+plt.xlabel('PCA Component 1')
+plt.ylabel('PCA Component 2')
+plt.legend()
+
+plt.tight_layout()
+plt.show()
+
+from sklearn.mixture import GaussianMixture
+
+X = df.drop(columns=['label','date'])
+
+scaler = StandardScaler()
+X_normalized = scaler.fit_transform(X)
+
+from sklearn.decomposition import PCA
+pca = PCA(n_components=2)
+X_pca = pca.fit_transform(X_normalized)
+
+gmm = GaussianMixture(n_components=3, random_state=78)
+gmm.fit(X_pca)
+gmm_labels = gmm.predict(X_pca)
+
+silhouette_gmm = silhouette_score(X_pca, gmm_labels)
+print(f"Silhouette Score (GMM): {silhouette_gmm:.3f}")
+
+plt.figure(figsize=(12,7 ))
+for cluster in range(3):
+    plt.scatter(X_pca[gmm_labels == cluster, 0], X_pca[gmm_labels == cluster, 1], label=f'Cluster {cluster}')
+plt.scatter(gmm.means_[:, 0], gmm.means_[:, 1], s=200, c='red', marker='X', label='Centroids')
+plt.title('GMM Clustering')
+plt.xlabel('PCA Component 1')
+plt.ylabel('PCA Component 2')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+#Best Clustring
+X = df.drop(columns=['label', 'date', 'user', 'source_postfix',
+                     'dest_postfix', 'source_prefix', 'dest_prefix', 'agent'])
+
+scaler = StandardScaler()
+X_normalized = scaler.fit_transform(X)
+
+pca = PCA(n_components=2)
+X_pca = pca.fit_transform(X_normalized)
+
+kmeans = KMeans(n_clusters=3, init='random', random_state=78)
+kmeans.fit(X_pca)
+kmeans_labels = kmeans.labels_
+
+silhouette_kmeans = silhouette_score(X_pca, kmeans_labels)
+print(f"Silhouette Score of K-Means ): {silhouette_kmeans:.3f}")
+
+plt.figure(figsize=(12, 6))
+plt.subplot(1, 2, 1)
+for cluster in range(3):
+    plt.scatter(X_pca[kmeans_labels == cluster, 0], X_pca[kmeans_labels == cluster, 1], label=f'Cluster {cluster}')
+plt.scatter(kmeans.cluster_centers_[:, 0], kmeans.cluster_centers_[:, 1], s=200, c='red', marker='X', label='Centroids')
+plt.title('K-Means Clustering')
+plt.xlabel('PCA Component 1')
+plt.ylabel('PCA Component 2')
+plt.legend()
+
+plt.tight_layout()
+plt.show()
