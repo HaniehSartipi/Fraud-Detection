@@ -1,5 +1,5 @@
 # Fraud-Detection
-Exploratory Data Analysis (EDA)
+#Exploratory Data Analysis (EDA)
 Checked for missing values (none found) and duplicates (none found).
 Visualized the amount feature with a histogram, observing most values are low.
 Used bar charts for categorical features, e.g., most common source_prefix and dest_prefix values are "Whiskers"; most frequent agent is "A".
